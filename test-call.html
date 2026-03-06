@@ -21,6 +21,12 @@
     .info span { color: #4ecca3; }
     .pulse { animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .divider { margin: 30px 0; border-top: 1px solid #333; }
+    .phone-section { margin-top: 20px; }
+    .phone-input { padding: 10px 16px; border-radius: 8px; border: 1px solid #333; background: #16213e; color: #fff; font-size: 14px; width: 100%; margin-bottom: 12px; }
+    .phone-btn { padding: 12px 36px; font-size: 16px; border: none; border-radius: 50px; cursor: pointer; background: #e67e22; color: #fff; transition: all 0.3s; }
+    .phone-btn:hover { background: #d35400; }
+    .phone-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -35,17 +41,27 @@
       </select>
     </div>
 
-    <button class="call-btn start" id="callBtn">Start Call</button>
+    <button class="call-btn start" id="callBtn">Start Web Call</button>
     <p class="status" id="status"></p>
+
+    <div class="divider"></div>
+
+    <div class="phone-section">
+      <h2 style="font-size: 18px; margin-bottom: 12px;">Call My Phone</h2>
+      <p style="color: #888; font-size: 13px; margin-bottom: 16px;">Enter your US number to receive a real call from the agent</p>
+      <input type="tel" id="phoneNumber" class="phone-input" placeholder="+1 (555) 123-4567">
+      <br>
+      <button class="phone-btn" id="phoneBtn">Call Me</button>
+      <p class="status" id="phoneStatus"></p>
+    </div>
 
     <div class="info">
       <strong>Sample Patient Data:</strong><br>
-      <span>Name:</span> Atharva<br>
+      <span>Name:</span> Test Patient<br>
       <span>DOB:</span> December 5, 2003 (say this to verify)<br>
-      <span>Drug:</span> Lisinopril tablet<br>
-      <span>Copay:</span> $15.00<br>
-      <span>Doctor:</span> Dr. Patel<br>
-      <span>Insurance:</span> Blue Cross
+      <span>Drug (Refill):</span> Lisinopril 10mg - $15.00<br>
+      <span>Drug (New Rx):</span> Eliquis 5mg - $45.00<br>
+      <span>Insurance:</span> Commercial (no rebate)
     </div>
   </div>
 
@@ -55,7 +71,7 @@
     const API_KEY = 'key_853bce24cf8c8328e5306883abc2';
     const AGENTS = {
       refill: 'agent_509c6ce94b7e7382a1ca58c5ba',
-      newrx: 'agent_9043ddc769a09be389737645b0',
+      newrx: 'agent_2555562514905393ef4bd79909',
     };
 
     let retellClient = null;
@@ -63,7 +79,7 @@
 
     const sampleVars = {
       refill: {
-        patient_first_name: 'Atharva',
+        patient_first_name: 'Test Patient',
         patient_dob: '2003-12-05',
         patient_age: '22',
         drug_name: 'Lisinopril tablet',
@@ -76,7 +92,7 @@
         pharmacy_phone: '(504) 681-9885',
       },
       newrx: {
-        patient_first_name: 'Atharva',
+        patient_first_name: 'Test Patient',
         patient_dob: '2003-12-05',
         patient_age: '22',
         drug_name: 'Eliquis tablet',
@@ -84,18 +100,15 @@
         copay: '$45.00',
         prescriber_last_name: 'Patel',
         insurance_name: 'Blue Cross',
-        sub_group: 'commercial_rebate',
+        sub_group: 'commercial_no_rebate',
         pharmacy_name: 'CLRx Pharmacy',
         pharmacy_phone: '(504) 681-9885',
       },
     };
 
+    // Web call
     async function toggleCall() {
-      if (isCallActive) {
-        stopCall();
-      } else {
-        startCall();
-      }
+      if (isCallActive) { stopCall(); } else { startCall(); }
     }
 
     async function startCall() {
@@ -108,49 +121,25 @@
       status.classList.add('pulse');
 
       try {
-        // Create web call via API
         const res = await fetch('https://api.retellai.com/v2/create-web-call', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            agent_id: AGENTS[agentType],
-            retell_llm_dynamic_variables: sampleVars[agentType],
-          }),
+          headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_id: AGENTS[agentType], retell_llm_dynamic_variables: sampleVars[agentType] }),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error_message || 'Failed to create call');
 
-        // Connect via SDK
         retellClient = new RetellWebClient();
-
-        retellClient.on('call_started', () => {
-          status.textContent = 'Call active - speak now!';
-          status.classList.remove('pulse');
-        });
-
-        retellClient.on('call_ended', () => {
-          status.textContent = 'Call ended';
-          status.classList.remove('pulse');
-          resetBtn();
-        });
-
-        retellClient.on('error', (err) => {
-          status.textContent = 'Error: ' + (err.message || err);
-          status.classList.remove('pulse');
-          resetBtn();
-        });
+        retellClient.on('call_started', () => { status.textContent = 'Call active - speak now!'; status.classList.remove('pulse'); });
+        retellClient.on('call_ended', () => { status.textContent = 'Call ended'; status.classList.remove('pulse'); resetBtn(); });
+        retellClient.on('error', (err) => { status.textContent = 'Error: ' + (err.message || err); status.classList.remove('pulse'); resetBtn(); });
 
         await retellClient.startCall({ accessToken: data.access_token });
-
         isCallActive = true;
         btn.disabled = false;
         btn.textContent = 'End Call';
         btn.className = 'call-btn stop';
-
       } catch (err) {
         status.textContent = 'Error: ' + err.message;
         status.classList.remove('pulse');
@@ -159,10 +148,7 @@
     }
 
     function stopCall() {
-      if (retellClient) {
-        retellClient.stopCall();
-        retellClient = null;
-      }
+      if (retellClient) { retellClient.stopCall(); retellClient = null; }
       resetBtn();
     }
 
@@ -170,11 +156,47 @@
       const btn = document.getElementById('callBtn');
       isCallActive = false;
       btn.disabled = false;
-      btn.textContent = 'Start Call';
+      btn.textContent = 'Start Web Call';
       btn.className = 'call-btn start';
     }
 
     document.getElementById('callBtn').addEventListener('click', toggleCall);
+
+    // Phone call
+    document.getElementById('phoneBtn').addEventListener('click', async () => {
+      const phoneBtn = document.getElementById('phoneBtn');
+      const phoneStatus = document.getElementById('phoneStatus');
+      let phone = document.getElementById('phoneNumber').value.trim();
+
+      if (!phone) { phoneStatus.textContent = 'Enter a phone number'; return; }
+
+      // Format: strip non-digits, add +1 if needed
+      let digits = phone.replace(/\D/g, '');
+      if (digits.length === 10) digits = '1' + digits;
+      if (!digits.startsWith('1')) { phoneStatus.textContent = 'Enter a US number'; return; }
+      phone = '+' + digits;
+
+      const agentType = document.getElementById('agentType').value;
+      phoneBtn.disabled = true;
+      phoneStatus.textContent = 'Calling ' + phone + '...';
+      phoneStatus.classList.add('pulse');
+
+      try {
+        const res = await fetch('/test/phone-call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: phone, agentType: agentType === 'newrx' ? 'new_rx' : 'refill' }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        phoneStatus.textContent = 'Call triggered! Check your phone. (ID: ' + (data.call_id || 'unknown') + ')';
+        phoneStatus.classList.remove('pulse');
+      } catch (err) {
+        phoneStatus.textContent = 'Error: ' + err.message;
+        phoneStatus.classList.remove('pulse');
+      }
+      phoneBtn.disabled = false;
+    });
   </script>
 </body>
 </html>

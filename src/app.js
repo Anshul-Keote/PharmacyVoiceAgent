@@ -79,6 +79,48 @@ if (config.nodeEnv === 'development') {
     }
   });
 
+  // Dev: trigger outbound phone call
+  app.post('/test/phone-call', async (req, res) => {
+    try {
+      const { phoneNumber, agentType } = req.body;
+      if (!phoneNumber) return res.status(400).json({ error: 'Missing phoneNumber' });
+
+      const agentId = agentType === 'new_rx'
+        ? config.retell.agents['AI NEW RX COV']
+        : config.retell.agents['AI REFILL DUE'];
+
+      const retellRes = await fetch('https://api.retellai.com/v2/create-phone-call', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + config.retell.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from_number: config.retell.fromNumber,
+          to_number: phoneNumber,
+          agent_id: agentId,
+          retell_llm_dynamic_variables: {
+            patient_first_name: 'Test Patient',
+            patient_dob: '12/05/2003',
+            patient_age: '22',
+            drug_name: agentType === 'new_rx' ? 'Eliquis' : 'Lisinopril',
+            drug_name_full: agentType === 'new_rx' ? 'Eliquis 5mg Tablets' : 'Lisinopril 10mg Tablets',
+            copay: agentType === 'new_rx' ? '$45.00' : '$15.00',
+            pharmacy_name: config.pharmacy.name,
+            pharmacy_phone: config.pharmacy.phone,
+            sub_group: 'commercial_no_rebate',
+          },
+        }),
+      });
+      const data = await retellRes.json();
+      console.log('[Test] Phone call triggered:', data.call_id || data);
+      res.json(data);
+    } catch (err) {
+      console.error('[Test] Phone call failed:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Dev: check Liberty API connection
   app.get('/test/liberty', async (req, res) => {
     try {
