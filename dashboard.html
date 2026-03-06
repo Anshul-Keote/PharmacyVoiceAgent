@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CLRx Pharmacy - Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #e0e0e0; }
+
+    .header { background: #16213e; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a4a; }
+    .header h1 { font-size: 20px; color: #fff; }
+    .header .subtitle { color: #888; font-size: 13px; }
+    .header .live { color: #4ecca3; font-size: 13px; }
+    .header .live::before { content: ''; display: inline-block; width: 8px; height: 8px; background: #4ecca3; border-radius: 50%; margin-right: 6px; animation: blink 2s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .nav { display: flex; gap: 12px; padding: 16px 30px; background: #12122a; }
+    .nav a { color: #888; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+    .nav a:hover, .nav a.active { background: #1e1e3a; color: #4ecca3; }
+
+    .content { padding: 24px 30px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #16213e; border-radius: 10px; padding: 20px; border: 1px solid #2a2a4a; }
+    .stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; }
+    .stat-card .value.green { color: #4ecca3; }
+    .stat-card .value.red { color: #e74c3c; }
+    .stat-card .value.yellow { color: #f39c12; }
+    .stat-card .value.blue { color: #3498db; }
+    .stat-card .value.purple { color: #9b59b6; }
+
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #fff; }
+
+    table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 10px; overflow: hidden; }
+    thead th { background: #1a1a3e; padding: 12px 16px; text-align: left; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #2a2a4a; }
+    tbody td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #1a1a3e; }
+    tbody tr:hover { background: #1a1a3e; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge.agreed { background: #1a3a2a; color: #4ecca3; }
+    .badge.declined { background: #3a1a1a; color: #e74c3c; }
+    .badge.doctor { background: #3a2a1a; color: #f39c12; }
+    .badge.no-answer { background: #1a2a3a; color: #3498db; }
+    .badge.transferred { background: #2a1a3a; color: #9b59b6; }
+    .badge.pending { background: #2a2a2a; color: #888; }
+    .badge.in-progress { background: #1a3a3a; color: #1abc9c; }
+    .badge.voicemail { background: #2a2a1a; color: #bdc3c7; }
+
+    .empty { text-align: center; padding: 60px; color: #555; }
+    .empty p { margin-bottom: 8px; }
+
+    .refresh-btn { background: #16213e; color: #4ecca3; border: 1px solid #2a2a4a; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .refresh-btn:hover { background: #1e1e3a; }
+
+    .play-btn { background: none; border: 1px solid #4ecca3; color: #4ecca3; padding: 3px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+    .play-btn:hover { background: #4ecca3; color: #0f0f1a; }
+    .no-rec { color: #555; font-size: 11px; }
+
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #16213e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-header h3 { font-size: 16px; color: #fff; }
+    .modal-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+    .modal-close:hover { color: #fff; }
+    .modal audio { width: 100%; margin-bottom: 16px; }
+    .transcript-box { background: #0f0f1a; border-radius: 8px; padding: 16px; font-size: 13px; line-height: 1.8; max-height: 400px; overflow-y: auto; }
+    .transcript-box .agent-line { color: #4ecca3; }
+    .transcript-box .user-line { color: #3498db; }
+    .modal-section { margin-bottom: 12px; }
+    .modal-section label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+    .modal-detail { font-size: 13px; color: #ccc; }
+
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>CLRx Pharmacy</h1>
+      <span class="subtitle">Voice Agent Dashboard</span>
+    </div>
+    <div style="text-align: right;">
+      <span class="live" id="liveStatus">Live</span><br>
+      <button class="refresh-btn" onclick="loadData()" style="margin-top: 6px;">Refresh</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <a href="/dashboard" class="active">Dashboard</a>
+    <a href="/test-call">Test Call</a>
+    <a href="/health">Health</a>
+  </div>
+
+  <div class="content">
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="label">Total Calls</div><div class="value blue" id="statTotal">0</div></div>
+      <div class="stat-card"><div class="label">Agreed to Fill</div><div class="value green" id="statAgreed">0</div></div>
+      <div class="stat-card"><div class="label">Declined</div><div class="value red" id="statDeclined">0</div></div>
+      <div class="stat-card"><div class="label">Doctor Contact</div><div class="value yellow" id="statDoctor">0</div></div>
+      <div class="stat-card"><div class="label">No Answer</div><div class="value blue" id="statNoAnswer">0</div></div>
+      <div class="stat-card"><div class="label">Transferred</div><div class="value purple" id="statTransferred">0</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Call History</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Patient</th>
+            <th>Agent</th>
+            <th>Drug</th>
+            <th>Copay</th>
+            <th>Outcome</th>
+            <th>Verified</th>
+            <th>Duration</th>
+            <th>Recording</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="callsTable">
+          <tr><td colspan="10" class="empty"><p>No calls yet</p><p style="font-size: 12px;">Make a test call to see data here</p></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Call detail modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="modalTitle">Call Details</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    let allCalls = [];
+
+    function getOutcomeBadge(outcome) {
+      const map = {
+        'agreed_to_fill': '<span class="badge agreed">Agreed</span>',
+        'declined': '<span class="badge declined">Declined</span>',
+        'wants_doctor_contact': '<span class="badge doctor">Doctor Contact</span>',
+        'no_answer': '<span class="badge no-answer">No Answer</span>',
+        'wrong_person': '<span class="badge no-answer">Wrong Person</span>',
+        'verification_failed': '<span class="badge declined">Verify Failed</span>',
+        'transferred': '<span class="badge transferred">Transferred</span>',
+        'call_back_later': '<span class="badge no-answer">Call Back</span>',
+        'in_progress': '<span class="badge in-progress">In Progress</span>',
+        'pending': '<span class="badge pending">Pending</span>',
+      };
+      return map[outcome] || `<span class="badge pending">${outcome}</span>`;
+    }
+
+    function getAgentLabel(name) {
+      const map = {
+        'agent_refill_due': 'Refill Reminder',
+        'agent_new_rx_cov': 'New Rx Covered',
+      };
+      return map[name] || name;
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' ' +
+             d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function formatDuration(seconds) {
+      if (!seconds) return '-';
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    }
+
+    function formatTranscript(transcript) {
+      if (!transcript) return '<p style="color: #555;">No transcript available</p>';
+      return transcript.split('\n').map(line => {
+        if (line.startsWith('Agent:')) return `<div class="agent-line">${line}</div>`;
+        if (line.startsWith('User:')) return `<div class="user-line">${line}</div>`;
+        return `<div>${line}</div>`;
+      }).join('');
+    }
+
+    function openCallDetail(callId) {
+      const call = allCalls.find(c => c.id === callId);
+      if (!call) return;
+
+      document.getElementById('modalTitle').textContent = `${call.patientName} - ${call.drugName}`;
+
+      let html = '';
+
+      // Recording player
+      if (call.recordingUrl) {
+        html += `
+          <div class="modal-section">
+            <label>Recording</label>
+            <audio controls src="${call.recordingUrl}" style="width: 100%;"></audio>
+          </div>`;
+      }
+
+      // Call info
+      html += `
+        <div class="modal-section">
+          <label>Summary</label>
+          <div class="modal-detail">${call.callSummary || 'No summary'}</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="modal-section">
+            <label>Outcome</label>
+            <div>${getOutcomeBadge(call.callOutcome)}</div>
+          </div>
+          <div class="modal-section">
+            <label>Duration</label>
+            <div class="modal-detail">${formatDuration(call.duration)}</div>
+          </div>
+          <div class="modal-section">
+            <label>Sentiment</label>
+            <div class="modal-detail">${call.sentiment || '-'}</div>
+          </div>
+          <div class="modal-section">
+            <label>Verified</label>
+            <div class="modal-detail">${call.patientVerified ? 'Yes' : 'No'}</div>
+          </div>
+        </div>`;
+
+      if (call.declineReason) {
+        html += `<div class="modal-section"><label>Decline Reason</label><div class="modal-detail">${call.declineReason}</div></div>`;
+      }
+      if (call.transferReason) {
+        html += `<div class="modal-section"><label>Transfer Reason</label><div class="modal-detail">${call.transferReason}</div></div>`;
+      }
+      if (call.patientConcern) {
+        html += `<div class="modal-section"><label>Patient Concern</label><div class="modal-detail">${call.patientConcern}</div></div>`;
+      }
+
+      // Transcript
+      if (call.transcript) {
+        html += `
+          <div class="modal-section">
+            <label>Transcript</label>
+            <div class="transcript-box">${formatTranscript(call.transcript)}</div>
+          </div>`;
+      }
+
+      document.getElementById('modalBody').innerHTML = html;
+      document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    function closeModal(event) {
+      if (event && event.target !== document.getElementById('modalOverlay')) return;
+      document.getElementById('modalOverlay').classList.remove('active');
+      // Stop any playing audio
+      const audio = document.querySelector('.modal audio');
+      if (audio) audio.pause();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    async function loadData() {
+      try {
+        const [statsRes, callsRes] = await Promise.all([
+          fetch('/api/stats'),
+          fetch('/api/calls'),
+        ]);
+
+        const stats = await statsRes.json();
+        const calls = await callsRes.json();
+        allCalls = calls;
+
+        // Update stats
+        document.getElementById('statTotal').textContent = stats.total || 0;
+        document.getElementById('statAgreed').textContent = stats.outcomes?.agreed_to_fill || 0;
+        document.getElementById('statDeclined').textContent = stats.outcomes?.declined || 0;
+        document.getElementById('statDoctor').textContent = stats.outcomes?.wants_doctor_contact || 0;
+        document.getElementById('statNoAnswer').textContent = stats.outcomes?.no_answer || 0;
+        document.getElementById('statTransferred').textContent = stats.outcomes?.transferred || 0;
+
+        // Update table
+        const tbody = document.getElementById('callsTable');
+
+        if (calls.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" class="empty"><p>No calls yet</p><p style="font-size: 12px;">Make a test call to see data here</p></td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = calls.map(call => `
+          <tr>
+            <td>${formatTime(call.timestamp)}</td>
+            <td><strong>${call.patientName}</strong></td>
+            <td>${getAgentLabel(call.agentName)}</td>
+            <td>${call.drugName}</td>
+            <td>${call.copay}</td>
+            <td>${getOutcomeBadge(call.callOutcome)}</td>
+            <td>${call.patientVerified ? '&#10003;' : '-'}</td>
+            <td>${formatDuration(call.duration)}</td>
+            <td>${call.recordingUrl
+              ? `<button class="play-btn" onclick="openCallDetail('${call.id}')">&#9654; Play</button>`
+              : `<span class="no-rec" style="cursor:pointer;" onclick="openCallDetail('${call.id}')">View</span>`
+            }</td>
+            <td style="max-width: 200px; font-size: 11px; color: #888; cursor: pointer;" onclick="openCallDetail('${call.id}')">${call.declineReason || call.transferReason || call.patientConcern || call.callSummary || '-'}</td>
+          </tr>
+        `).join('');
+
+      } catch (err) {
+        console.error('Failed to load data:', err);
+      }
+    }
+
+    // Load on start and auto-refresh every 5s
+    loadData();
+    setInterval(loadData, 5000);
+  </script>
+</body>
+</html>

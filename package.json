@@ -1,0 +1,21 @@
+{
+  "name": "pharmacy-voice-agent",
+  "version": "1.0.0",
+  "description": "AI-powered outbound call middleware for CLRx Pharmacy - Liberty Software + Retell AI",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [],
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "express": "^4.21.0",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
