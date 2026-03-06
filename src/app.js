@@ -121,6 +121,28 @@ if (config.nodeEnv === 'development') {
     }
   });
 
+  // Dev: register Liberty subscription webhook
+  app.post("/test/register-webhook", async (req, res) => {
+    try {
+      const result = await fetch(`${config.liberty.baseUrl}/subscription`, {
+        method: "POST",
+        headers: {
+          "Authorization": config.liberty.authHeader,
+          "Customer": config.liberty.customerHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          Event: "WorkflowLocationChange",
+          Url: "https://pharmacyvoiceagent-production.up.railway.app/webhooks/liberty",
+        }),
+      });
+      const text = await result.text();
+      res.json({ status: result.status, response: text });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Dev: check Liberty API connection
   app.get('/test/liberty', async (req, res) => {
     try {
